@@ -7,6 +7,10 @@ services:
     branch: main
     healthCheckPath: /
     envVars:
+      - key: YOUTUBE_CLIENT_SECRETS_FILE
+        value: /etc/secrets/client_secrets.json
+      - key: YOUTUBE_TOKEN_FILE
+        value: /etc/secrets/token.pickle
       - key: VIDEOS_DIR
         value: videos
       - key: UPLOADED_DIR
