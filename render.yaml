@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: youtube-automation
     env: docker
     region: oregon
