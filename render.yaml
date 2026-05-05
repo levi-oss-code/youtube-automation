@@ -1,0 +1,18 @@
+services:
+  - type: worker
+    name: youtube-automation
+    env: docker
+    region: oregon
+    plan: free
+    branch: main
+    envVars:
+      - key: VIDEOS_DIR
+        value: videos
+      - key: UPLOADED_DIR
+        value: uploaded
+      - key: DEFAULT_PRIVACY
+        value: private
+      - key: DEFAULT_CATEGORY
+        value: "22"
+      - key: DEFAULT_LANGUAGE
+        value: en
