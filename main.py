@@ -11,6 +11,9 @@ Each run processes all pending videos in the VIDEOS_DIR.
 import os
 import shutil
 import json
+import time
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from datetime import datetime
 
@@ -28,6 +31,33 @@ DEFAULT_CATEGORY = os.getenv("DEFAULT_CATEGORY", "22")
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+
+TRIGGER = threading.Event()
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):  # type: ignore[override]
+        if self.path.startswith("/run"):
+            TRIGGER.set()
+            self.send_response(202)
+            self.end_headers()
+            self.wfile.write(b"Triggered upload run")
+            return
+
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format: str, *args):  # noqa: N802
+        # Silence default request logging
+        return
+
+def start_http_server() -> None:
+    """Start a tiny HTTP server for health checks and manual trigger."""
+    port = int(os.getenv("PORT", "8000"))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"HTTP server listening on 0.0.0.0:{port}")
 
 
 def ensure_directories() -> None:
@@ -117,29 +147,37 @@ def process_video(video_path: Path) -> bool:
 
 
 def main() -> None:
-    """Main entry point. Process all pending videos."""
-    print(f"[{datetime.now().isoformat()}] Pipeline started")
+    """Main entry point. Run pipeline loop and expose health endpoint for Render."""
+    print("YouTube Automation Pipeline started")
+    print("Checking for videos every 60 minutes or on /run trigger...")
     ensure_directories()
+    start_http_server()
 
-    video_files = get_video_files()
+    while True:
+        print(f"\n[{datetime.now().isoformat()}] Checking for new videos...")
+        video_files = get_video_files()
 
-    if not video_files:
-        print("No videos to process.")
-        return
-
-    print(f"Found {len(video_files)} video(s) to process.")
-
-    success_count = 0
-    fail_count = 0
-
-    for video_path in video_files:
-        if process_video(video_path):
-            success_count += 1
+        if not video_files:
+            print("No videos to process.")
         else:
-            fail_count += 1
+            print(f"Found {len(video_files)} video(s) to process.")
 
-    print(f"\nPipeline complete: {success_count} uploaded, {fail_count} failed.")
-    print(f"[{datetime.now().isoformat()}] Pipeline finished")
+            success_count = 0
+            fail_count = 0
+
+            for video_path in video_files:
+                if process_video(video_path):
+                    success_count += 1
+                else:
+                    fail_count += 1
+
+            print(f"\nPipeline complete: {success_count} uploaded, {fail_count} failed.")
+
+        print(f"[{datetime.now().isoformat()}] Waiting up to 60 minutes or until /run is called...")
+        TRIGGER.wait(timeout=3600)
+        if TRIGGER.is_set():
+            print("Received manual trigger — running immediately.")
+            TRIGGER.clear()
 
 
 if __name__ == "__main__":
