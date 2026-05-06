@@ -10,7 +10,7 @@ services:
       - key: YOUTUBE_CLIENT_SECRETS_FILE
         value: /etc/secrets/client_secrets.json
       - key: YOUTUBE_TOKEN_FILE
-        value: /etc/secrets/token.pickle
+        value: /etc/secrets/token.json
       - key: VIDEOS_DIR
         value: videos
       - key: UPLOADED_DIR

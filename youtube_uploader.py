@@ -4,6 +4,7 @@ Run this file directly ONCE on your local machine to generate the OAuth token.
 After that, the token is reused by main.py in production.
 """
 
+import json
 import os
 import pickle
 from pathlib import Path
@@ -22,13 +23,38 @@ CLIENT_SECRETS_FILE = os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "client_secrets.j
 TOKEN_FILE = os.getenv("YOUTUBE_TOKEN_FILE", "token.pickle")
 
 
+def _load_credentials() -> Credentials | None:
+    """Load credentials from JSON or pickle token file."""
+    token_path = Path(TOKEN_FILE)
+    if not token_path.exists():
+        return None
+
+    # Try JSON first (text-safe, preferred for Render)
+    try:
+        with open(token_path, "r", encoding="utf-8") as f:
+            info = json.load(f)
+        return Credentials.from_authorized_user_info(info, SCOPES)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fall back to pickle (legacy local format)
+    try:
+        with open(token_path, "rb") as f:
+            return pickle.load(f)
+    except Exception:
+        return None
+
+
+def _save_credentials(credentials: Credentials) -> None:
+    """Save credentials as JSON (text-safe) so it survives Render secret handling."""
+    token_path = Path(TOKEN_FILE)
+    with open(token_path, "w", encoding="utf-8") as f:
+        json.dump(json.loads(credentials.to_json()), f, indent=2)
+
+
 def get_authenticated_service():
     """Authenticate and return a YouTube API service instance."""
-    credentials: Credentials | None = None
-
-    if Path(TOKEN_FILE).exists():
-        with open(TOKEN_FILE, "rb") as token:
-            credentials = pickle.load(token)
+    credentials = _load_credentials()
 
     if not credentials or not credentials.valid:
         if credentials and credentials.expired and credentials.refresh_token:
@@ -44,8 +70,7 @@ def get_authenticated_service():
             )
             credentials = flow.run_local_server(port=8081)
 
-        with open(TOKEN_FILE, "wb") as token:
-            pickle.dump(credentials, token)
+        _save_credentials(credentials)
 
     return build("youtube", "v3", credentials=credentials)
 
