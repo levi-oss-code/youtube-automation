@@ -53,8 +53,14 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 def start_http_server() -> None:
     """Start a tiny HTTP server for health checks and manual trigger."""
+    # Try PORT first (Render), fallback to 8001 if taken
     port = int(os.getenv("PORT", "8000"))
-    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    try:
+        server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    except OSError:
+        # Port is taken, try 8001
+        port = 8001
+        server = HTTPServer(("0.0.0.0", port), HealthHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"HTTP server listening on 0.0.0.0:{port}")

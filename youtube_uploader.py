@@ -20,7 +20,7 @@ load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 CLIENT_SECRETS_FILE = os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "client_secrets.json")
-TOKEN_FILE = os.getenv("YOUTUBE_TOKEN_FILE", "token.pickle")
+TOKEN_FILE = os.getenv("YOUTUBE_TOKEN_FILE", "token.json")
 
 
 def _load_credentials() -> Credentials | None:
