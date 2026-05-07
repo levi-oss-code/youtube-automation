@@ -60,6 +60,62 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"triggered": True}).encode())
             global _trigger_flag
             _trigger_flag = True
+        elif self.path == "/status":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            
+            # Get detailed status
+            video_files = list(VIDEOS_DIR.glob("*.mp4"))
+            metadata_files = list(METADATA_DIR.glob("*.json"))
+            thumbnail_files = list(THUMBNAILS_DIR.glob("*.jpg"))
+            uploaded_files = list(UPLOADED_DIR.glob("*.json"))
+            
+            # Get ready-to-upload videos
+            ready_videos = []
+            for meta_file in metadata_files:
+                try:
+                    with open(meta_file, "r") as f:
+                        meta = json.load(f)
+                    if meta.get("status") == "ready_for_upload":
+                        video_path = Path(meta.get("video_file", ""))
+                        if video_path.exists():
+                            ready_videos.append({
+                                "video_id": meta.get("video_id"),
+                                "title": meta.get("title", "")[:50],
+                                "created_at": meta.get("created_at"),
+                                "video_file": str(video_path.name),
+                                "thumbnail_file": str(Path(meta.get("thumbnail_file", "")).name)
+                            })
+                except:
+                    pass
+            
+            status_data = {
+                "service": "youtube-automation",
+                "status": "running",
+                "directories": {
+                    "videos": {
+                        "count": len(video_files),
+                        "files": [f.name for f in video_files[:5]]
+                    },
+                    "metadata": {
+                        "count": len(metadata_files),
+                        "files": [f.name for f in metadata_files[:5]]
+                    },
+                    "thumbnails": {
+                        "count": len(thumbnail_files),
+                        "files": [f.name for f in thumbnail_files[:5]]
+                    },
+                    "uploaded": {
+                        "count": len(uploaded_files),
+                        "files": [f.name for f in uploaded_files[:5]]
+                    }
+                },
+                "ready_to_upload": ready_videos,
+                "last_check": datetime.now().isoformat()
+            }
+            
+            self.wfile.write(json.dumps(status_data, indent=2).encode())
         else:
             self.send_response(404)
             self.end_headers()
