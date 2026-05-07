@@ -116,6 +116,35 @@ class HealthHandler(BaseHTTPRequestHandler):
             }
             
             self.wfile.write(json.dumps(status_data, indent=2).encode())
+        elif self.path == "/debug":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            
+            debug_info = {
+                "service": "youtube-automation",
+                "debug": True,
+                "directories_exist": {
+                    "videos": VIDEOS_DIR.exists(),
+                    "metadata": METADATA_DIR.exists(),
+                    "thumbnails": THUMBNAILS_DIR.exists(),
+                    "uploaded": UPLOADED_DIR.exists()
+                },
+                "secrets_exist": {
+                    "client_secrets": Path(YOUTUBE_CLIENT_SECRETS_FILE).exists(),
+                    "token": Path(YOUTUBE_TOKEN_FILE).exists()
+                },
+                "environment": {
+                    "VIDEOS_DIR": str(VIDEOS_DIR),
+                    "METADATA_DIR": str(METADATA_DIR),
+                    "THUMBNAILS_DIR": str(THUMBNAILS_DIR),
+                    "UPLOADED_DIR": str(UPLOADED_DIR),
+                    "YOUTUBE_CLIENT_SECRETS_FILE": YOUTUBE_CLIENT_SECRETS_FILE,
+                    "YOUTUBE_TOKEN_FILE": YOUTUBE_TOKEN_FILE
+                }
+            }
+            
+            self.wfile.write(json.dumps(debug_info, indent=2).encode())
         else:
             self.send_response(404)
             self.end_headers()
